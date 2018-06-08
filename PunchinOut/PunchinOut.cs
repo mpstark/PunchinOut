@@ -1,17 +1,16 @@
 ﻿using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using BattleTech;
 using Harmony;
-using JetBrains.Annotations;
 using Newtonsoft.Json;
+
+// ReSharper disable InconsistentNaming
+// ReSharper disable UnusedMember.Global
 
 namespace PunchinOut
 {
-    [UsedImplicitly]
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
     [HarmonyPatch(typeof(AttackStackSequence), "OnAttackComplete")]
-    public static class AttackStackSequence_OnAttackComplete_Patch
+    public static class AttackStackSequence_OnAttack_Complete_Patch
     {
         public static void Prefix(AttackStackSequence __instance, MessageCenterMessage message)
         {
@@ -33,10 +32,10 @@ namespace PunchinOut
         public bool GutsTenAlwaysResists = true;
         public bool KnockedDownCannotEject = true;
 
-        public float MaxEjectChance = 50;
+        public float MaxEjectChance = 25;
 
         public float BaseEjectionResist = 10;
-        public float GutsEjectionResistPerPoint = 2;
+        public float GutsEjectionResistPerPoint = 3;
 
         public float UnsteadyModifier = 3;
         public float PilotHealthMaxModifier = 5;
@@ -48,13 +47,13 @@ namespace PunchinOut
 
         public float NextShotLikeThatCouldKill = 10;
         
-        public float WeaponlessModifier = 10;
-        public float AloneModifier = 10;
+        public float WeaponlessModifier = 15;
+        public float AloneModifier = 5;
     }
 
     public static class PunchinOut
     {
-        internal static ModSettings Settings;
+        private static ModSettings Settings;
 
         public static void Init(string modDir, string modSettings)
         {
@@ -88,7 +87,7 @@ namespace PunchinOut
             var weapons = mech.Weapons;
             var guts = mech.SkillGuts;
 
-            float lowestRemaining = mech.CenterTorsoStructure + mech.CenterTorsoFrontArmor;
+            var lowestRemaining = mech.CenterTorsoStructure + mech.CenterTorsoFrontArmor;
             float ejectModifiers = 0;
             
             // guts 10 makes you immune, player character cannot be forced to eject
@@ -105,22 +104,16 @@ namespace PunchinOut
                 var pilotHealthPercent = 1 - (pilot.Injuries / pilot.Health);
 
                 if (pilotHealthPercent < 1)
-                {
                     ejectModifiers += Settings.PilotHealthMaxModifier * (1 - pilotHealthPercent);
-                }
             }
 
             if (mech.IsUnsteady)
-            {
                 ejectModifiers += Settings.UnsteadyModifier;
-            }
 
             // Head
             var headHealthPercent = (mech.HeadArmor + mech.HeadStructure) / (mech.GetMaxArmor(ArmorLocation.Head) + mech.GetMaxStructure(ChassisLocations.Head));
             if (headHealthPercent < 1)
-            {
                 ejectModifiers += Settings.HeadDamageMaxModifier * (1 - headHealthPercent);
-            }
 
             // CT
             var ctPercent = (mech.CenterTorsoFrontArmor + mech.CenterTorsoStructure) / (mech.GetMaxArmor(ArmorLocation.CenterTorso) + mech.GetMaxStructure(ChassisLocations.CenterTorso));
@@ -133,16 +126,12 @@ namespace PunchinOut
             // side torsos
             var ltStructurePercent = mech.LeftTorsoStructure / mech.GetMaxStructure(ChassisLocations.LeftTorso);
             if (ltStructurePercent < 1)
-            {
                 ejectModifiers += Settings.SideTorsoInternalDamageMaxModifier * (1 - ltStructurePercent);
-            }
 
             var rtStructurePercent = mech.RightTorsoStructure / mech.GetMaxStructure(ChassisLocations.RightTorso);
             if (rtStructurePercent < 1)
-            {
                 ejectModifiers += Settings.SideTorsoInternalDamageMaxModifier * (1 - rtStructurePercent);
-            }
-            
+
             // legs
             if (mech.RightLegDamageLevel == LocationDamageLevel.Destroyed || mech.LeftLegDamageLevel == LocationDamageLevel.Destroyed)
             {
@@ -166,10 +155,8 @@ namespace PunchinOut
 
             // next shot could kill
             if (lowestRemaining <= attackSequence.cumulativeDamage)
-            {
                 ejectModifiers += Settings.NextShotLikeThatCouldKill;
-            }
-            
+
             // weaponless
             if (weapons.TrueForAll(w =>
                 w.DamageLevel == ComponentDamageLevel.Destroyed || w.DamageLevel == ComponentDamageLevel.NonFunctional))
